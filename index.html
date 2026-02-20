@@ -1,17 +1,70 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>Hills & Partners AI Test</title>
-</head>
-<body style="background:#0f1117; color:white; font-family:sans-serif;">
-  <h1>Hills & Partners AI Widget Test</h1>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hills & Partners AI Widget Test</title>
 
+  <style>
+    :root{
+      --hp-blue:#1E5AA8;
+      --hp-blue2:#2B7DE9;
+      --hp-bg:#f5f9ff;
+      --hp-text:#0f172a;
+      --hp-muted:#475569;
+    }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
+      background: linear-gradient(180deg, #ffffff 0%, var(--hp-bg) 100%);
+      color: var(--hp-text);
+    }
+    header{
+      padding:56px 20px 36px;
+      text-align:center;
+      background: linear-gradient(90deg, rgba(30,90,168,.10), rgba(43,125,233,.06));
+      border-bottom:1px solid rgba(15,23,42,.08);
+    }
+    h1{ margin:0 0 12px; font-size:34px; font-weight:900; }
+    p{ margin:0 auto; max-width:680px; line-height:1.7; color:var(--hp-muted); }
+    .content{ max-width:960px; margin:0 auto; padding:46px 20px 70px; }
+    .card{
+      background:#fff;
+      border-radius:16px;
+      padding:28px;
+      border:1px solid rgba(15,23,42,.06);
+      box-shadow: 0 18px 55px rgba(15,23,42,.08);
+    }
+    footer{ text-align:center; padding:40px 20px; color:var(--hp-muted); font-size:14px; }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Hills & Partners AI Widget Test</h1>
+    <p>右下のボタンからAIを起動。導入/サービス/相談の質問を投げて動作確認しろ。</p>
+  </header>
+
+  <div class="content">
+    <div class="card">
+      <h2 style="margin:0 0 10px;">テスト用ページ</h2>
+      <p style="margin:0;">
+        GitHub Pages上で widget.js を読み込み、n8n Webhook に投げる構成。
+        ここで動けば、クライアント本番サイトにも同じタグを貼るだけでいける。
+      </p>
+    </div>
+  </div>
+
+  <footer>© Hills & Partners</footer>
+
+  <!-- ★重要：widget.js と同階層に置く -->
   <script
     src="./widget.js"
+    data-webhook="https://nextasia.app.n8n.cloud/webhook/b4fcdd4d-5df4-4b5f-8e25-a85fbcd2cdb5"
     data-title="Hills & Partners AI"
+    data-accent="#1E5AA8"
+    data-accent2="#2B7DE9"
     defer
   ></script>
-
 </body>
 </html>
