@@ -1,210 +1,297 @@
 (() => {
   const script = document.currentScript || [...document.scripts].slice(-1)[0];
+  const WEBHOOK = script?.dataset?.webhook || "";
+  if (!WEBHOOK) return console.error("data-webhook がない");
 
-  // Hills & Partners 固定Webhook
-  const WEBHOOK = "https://nextasia.app.n8n.cloud/webhook/b4fcdd4d-5df4-4b5f-8e25-a85fbcd2cdb5";
-
+  // ===== Brand Config =====
   const TITLE = script?.dataset?.title || "Hills & Partners AI";
-  const ACCENT = script?.dataset?.accent || "#00E5FF";
-  const ACCENT2 = script?.dataset?.accent2 || "#B100FF";
+  // コーポレートブルー寄り（必要ならdata-accentで差し替え）
+  const ACCENT = script?.dataset?.accent || "#1E5AA8";
+  const ACCENT2 = script?.dataset?.accent2 || "#2B7DE9"; // グラデ用
+  const LOGO_URL = script?.dataset?.logo || ""; // 任意: data-logo="https://..."
 
-  const KEY = "hills_ai_widget_session_id";
+  // Session
+  const KEY = "hp_ai_widget_session_id";
   let sessionId = localStorage.getItem(KEY);
   if (!sessionId) {
     sessionId = (crypto?.randomUUID?.() || String(Date.now())).toString();
     localStorage.setItem(KEY, sessionId);
   }
 
+  // ===== Launcher (Floating) =====
   const launcher = document.createElement("button");
-  launcher.id = "aiLauncherBtn";
+  launcher.id = "hpAiLauncher";
   launcher.type = "button";
   launcher.innerHTML = `
-    <span class="aiDot"></span>
-    <span class="aiLauncherText">AIに質問する</span>
-    <span class="aiLauncherHint">クリックで起動</span>
+    <span class="hpAiDot" aria-hidden="true"></span>
+    <span class="hpAiLauncherText">AIに相談</span>
   `;
   document.body.appendChild(launcher);
 
+  // ===== Widget Box =====
   const box = document.createElement("div");
-  box.id = "aiWidgetBox";
+  box.id = "hpAiBox";
+  box.setAttribute("role", "dialog");
+  box.setAttribute("aria-label", "Hills & Partners AI Chat");
   box.innerHTML = `
-    <div class="aiHead">
-      <div class="aiBrand">
-        <div class="aiTitle">${TITLE}</div>
-        <div class="aiSub">Hills & Partners // AI Assistant</div>
+    <div class="hpAiHead">
+      <div class="hpAiBrand">
+        ${LOGO_URL ? `<img class="hpAiLogo" src="${LOGO_URL}" alt="logo" />` : `<div class="hpAiLogoFallback" aria-hidden="true"></div>`}
+        <div class="hpAiBrandText">
+          <div class="hpAiTitle">${TITLE}</div>
+          <div class="hpAiSub">Hills & Partners // AI Assistant</div>
+        </div>
       </div>
-      <button id="aiWidgetClose" class="aiX" aria-label="close">×</button>
+      <button id="hpAiClose" class="hpAiClose" type="button" aria-label="close">×</button>
     </div>
 
-    <div class="aiLog" id="aiWidgetLog"></div>
-
-    <div class="aiRow">
-      <input id="aiWidgetInput" placeholder="ご質問を入力してください…" />
-      <button id="aiWidgetSend">送信</button>
+    <div class="hpAiBody">
+      <div class="hpAiLog" id="hpAiLog"></div>
+      <div class="hpAiFooter">
+        <input id="hpAiInput" type="text" placeholder="例：サービス内容を教えてください" />
+        <button id="hpAiSend" type="button">送信</button>
+      </div>
+      <div class="hpAiFineprint">
+        個人情報や機密情報は入力しないでください。必要に応じて担当者へ引き継ぎます。
+      </div>
     </div>
   `;
   document.body.appendChild(box);
 
+  // ===== CSS (White + Blue Corporate) =====
   const style = document.createElement("style");
   style.textContent = `
 :root{
-  --ai-accent:${ACCENT};
-  --ai-accent2:${ACCENT2};
-  --ai-text:rgba(245,245,255,.92);
-  --ai-muted:rgba(200,210,255,.70);
-  --ai-shadow:0 18px 60px rgba(0,0,0,.55);
-  --ai-radius:18px;
+  --hp-accent: ${ACCENT};
+  --hp-accent2: ${ACCENT2};
+  --hp-bg: #ffffff;
+  --hp-panel: #ffffff;
+  --hp-text: #0f172a;   /* slate-900 */
+  --hp-muted: #475569;  /* slate-600 */
+  --hp-border: rgba(15, 23, 42, 0.12);
+  --hp-shadow: 0 18px 60px rgba(15, 23, 42, 0.18);
+  --hp-radius: 16px;
 }
-#aiLauncherBtn{
-  position:fixed; right:18px; bottom:18px;
-  width:min(360px, calc(100vw - 36px));
-  height:54px;
-  z-index:999999;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,.12);
-  background: rgba(12,16,28,.78);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 0 0 1px rgba(0,229,255,.10), 0 0 30px rgba(0,229,255,.16), var(--ai-shadow);
-  display:flex; align-items:center; gap:10px;
-  padding: 10px 14px;
-  cursor:pointer;
-  color: var(--ai-text);
-  overflow:hidden;
-}
-#aiLauncherBtn::before{
-  content:"";
-  position:absolute; inset:-2px;
-  background: radial-gradient(60% 120% at 10% 50%, rgba(0,229,255,.25), transparent 60%),
-              radial-gradient(60% 120% at 90% 50%, rgba(177,0,255,.18), transparent 60%);
-  pointer-events:none;
-}
-#aiLauncherBtn .aiDot{
-  width:10px; height:10px; border-radius:999px;
-  background: linear-gradient(135deg, rgba(0,229,255,.95), rgba(177,0,255,.85));
-  box-shadow: 0 0 18px rgba(0,229,255,.55);
-  flex:0 0 auto;
-}
-#aiLauncherBtn .aiLauncherText{
-  font-weight:800;
-  letter-spacing:.06em;
-  white-space:nowrap;
-}
-#aiLauncherBtn .aiLauncherHint{
-  margin-left:auto;
-  font-size:12px;
-  color: var(--ai-muted);
-  letter-spacing:.08em;
-}
-#aiLauncherBtn:hover{
-  border-color: rgba(0,229,255,.35);
-  box-shadow: 0 0 0 1px rgba(0,229,255,.18), 0 0 46px rgba(0,229,255,.22), var(--ai-shadow);
-}
-#aiWidgetBox{
-  position:fixed; right:18px; bottom:82px;
-  width:390px; max-width:92vw;
-  height:560px; max-height:72vh;
-  display:none; overflow:hidden;
-  z-index:999999;
-  color: var(--ai-text);
+
+/* ===== Launcher ===== */
+#hpAiLauncher{
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 999999;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--hp-border);
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+  color: var(--hp-text);
+  box-shadow: var(--hp-shadow);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
-  background: linear-gradient(180deg, rgba(12,16,28,.82), rgba(10,12,20,.72));
-  border-radius: var(--ai-radius);
-  border: 1px solid rgba(255,255,255,.10);
-  box-shadow: 0 0 0 1px rgba(0,229,255,.10), 0 0 40px rgba(0,229,255,.18), 0 0 70px rgba(177,0,255,.12), var(--ai-shadow);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
 }
-.aiHead{
-  padding:12px 12px;
-  background: linear-gradient(180deg, rgba(0,229,255,.08), rgba(177,0,255,.03));
-  border-bottom: 1px solid rgba(255,255,255,.08);
-  display:flex; align-items:center; justify-content:space-between;
-  gap:10px;
+#hpAiLauncher:hover{
+  transform: translateY(-1px);
 }
-.aiBrand{ display:flex; flex-direction:column; gap:4px; min-width:0; }
-.aiTitle{
-  font-weight: 800; letter-spacing: .08em; font-size: 14px;
-  text-transform: uppercase;
-  text-shadow: 0 0 12px rgba(0,229,255,.35);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+#hpAiLauncher:active{
+  transform: translateY(0);
 }
-.aiSub{
-  font-size: 11px; color: var(--ai-muted);
-  letter-spacing: .12em; opacity: .9;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+.hpAiDot{
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--hp-accent), var(--hp-accent2));
+  box-shadow: 0 0 0 4px rgba(43, 125, 233, 0.16);
 }
-.aiX{
-  width:36px; height:36px;
-  border:none; background: rgba(0,0,0,.18);
-  color: rgba(245,245,255,.85);
-  border-radius:12px;
-  border: 1px solid rgba(255,255,255,.10);
-  display:flex; align-items:center; justify-content:center;
-  font-size:20px; line-height:1;
-  cursor:pointer;
+.hpAiLauncherText{
+  font-weight: 800;
+  letter-spacing: .02em;
 }
-.aiLog{
-  padding:14px;
-  height: calc(100% - 122px);
-  overflow:auto;
-  overscroll-behavior: contain;
+
+/* ===== Box ===== */
+#hpAiBox{
+  position: fixed;
+  right: 18px;
+  bottom: 76px;
+  width: 390px;
+  max-width: calc(100vw - 36px);
+  height: 560px;
+  max-height: 78vh;
+  background: var(--hp-panel);
+  border: 1px solid var(--hp-border);
+  border-radius: var(--hp-radius);
+  box-shadow: var(--hp-shadow);
+  overflow: hidden;
+  display: none;
+  z-index: 999999;
+  color: var(--hp-text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
 }
-.aiMsg{ margin:12px 0; display:flex; }
-.aiMsg.user{ justify-content:flex-end; }
-.aiBubble{
-  max-width:78%;
-  padding:10px 12px;
+
+/* ===== Header ===== */
+.hpAiHead{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 12px;
+  background: linear-gradient(90deg, rgba(30, 90, 168, 0.10), rgba(43, 125, 233, 0.06));
+  border-bottom: 1px solid var(--hp-border);
+}
+.hpAiBrand{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.hpAiLogo{
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+}
+.hpAiLogoFallback{
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--hp-accent), var(--hp-accent2));
+  box-shadow: 0 10px 25px rgba(30, 90, 168, 0.22);
+}
+.hpAiBrandText{ min-width: 0; }
+.hpAiTitle{
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hpAiSub{
+  font-size: 11px;
+  color: var(--hp-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hpAiClose{
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid var(--hp-border);
+  background: #fff;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--hp-muted);
+}
+.hpAiClose:hover{
+  color: var(--hp-text);
+  border-color: rgba(30, 90, 168, 0.25);
+}
+
+/* ===== Body ===== */
+.hpAiBody{
+  height: calc(100% - 57px);
+  display: flex;
+  flex-direction: column;
+}
+.hpAiLog{
+  flex: 1;
+  padding: 14px;
+  overflow: auto;
+  background: linear-gradient(180deg, #ffffff, #f7fbff);
+}
+.hpAiLog::-webkit-scrollbar{ width: 10px; }
+.hpAiLog::-webkit-scrollbar-thumb{
+  background: rgba(30, 90, 168, 0.25);
+  border-radius: 999px;
+}
+
+/* ===== Messages ===== */
+.hpAiMsg{
+  display: flex;
+  margin: 10px 0;
+}
+.hpAiMsg.user{ justify-content: flex-end; }
+.hpAiBubble{
+  max-width: 78%;
+  padding: 10px 12px;
   border-radius: 14px;
-  line-height: 1.55;
+  border: 1px solid var(--hp-border);
+  background: #fff;
+  line-height: 1.6;
   white-space: pre-wrap;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.04);
+  color: var(--hp-text);
 }
-.aiMsg.user .aiBubble{
-  border: 1px solid rgba(0,229,255,.25);
-  background: linear-gradient(135deg, rgba(0,229,255,.22), rgba(177,0,255,.14));
+.hpAiMsg.user .hpAiBubble{
+  border-color: rgba(30, 90, 168, 0.25);
+  background: linear-gradient(135deg, rgba(30, 90, 168, 0.10), rgba(43, 125, 233, 0.06));
 }
-.aiRow{
-  display:flex; gap:10px;
-  padding:12px 12px;
-  border-top: 1px solid rgba(255,255,255,.08);
-  background: rgba(0,0,0,.14);
+
+/* ===== Footer ===== */
+.hpAiFooter{
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid var(--hp-border);
+  background: #fff;
 }
-#aiWidgetInput{
-  flex:1;
-  padding:10px 12px;
+#hpAiInput{
+  flex: 1;
+  padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.10);
-  outline:none;
-  background: rgba(8,10,16,.55);
-  color: var(--ai-text);
+  border: 1px solid var(--hp-border);
+  outline: none;
+  background: #fff;
+  color: var(--hp-text);
 }
-#aiWidgetSend{
-  padding:10px 14px;
+#hpAiInput:focus{
+  border-color: rgba(43, 125, 233, 0.55);
+  box-shadow: 0 0 0 4px rgba(43, 125, 233, 0.14);
+}
+#hpAiSend{
+  padding: 10px 14px;
   border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.10);
-  cursor:pointer;
-  color: rgba(245,245,255,.95);
-  background: linear-gradient(135deg, rgba(0,229,255,.45), rgba(177,0,255,.30));
+  border: 1px solid rgba(30, 90, 168, 0.18);
+  background: linear-gradient(135deg, var(--hp-accent), var(--hp-accent2));
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
 }
+#hpAiSend:hover{
+  filter: brightness(1.02);
+}
+
+.hpAiFineprint{
+  padding: 0 12px 12px 12px;
+  font-size: 11px;
+  color: var(--hp-muted);
+  background: #fff;
+}
+
+/* ===== Mobile ===== */
 @media (max-width: 520px){
-  #aiWidgetBox{ right:12px; width: calc(100vw - 24px); }
-  #aiLauncherBtn{ right:12px; width: calc(100vw - 24px); }
+  #hpAiBox{ right: 12px; width: calc(100vw - 24px); }
+  #hpAiLauncher{ right: 12px; }
 }
   `;
   document.head.appendChild(style);
 
-  const log = box.querySelector("#aiWidgetLog");
-  const input = box.querySelector("#aiWidgetInput");
-  const send = box.querySelector("#aiWidgetSend");
-  const close = box.querySelector("#aiWidgetClose");
+  // ===== DOM refs =====
+  const log = box.querySelector("#hpAiLog");
+  const input = box.querySelector("#hpAiInput");
+  const send = box.querySelector("#hpAiSend");
+  const close = box.querySelector("#hpAiClose");
 
   function addMsg(role, text) {
     const wrap = document.createElement("div");
-    wrap.className = "aiMsg " + (role === "user" ? "user" : "ai");
+    wrap.className = "hpAiMsg " + (role === "user" ? "user" : "ai");
     const bub = document.createElement("div");
-    bub.className = "aiBubble";
+    bub.className = "hpAiBubble";
     bub.textContent = text;
     wrap.appendChild(bub);
     log.appendChild(wrap);
@@ -214,7 +301,7 @@
 
   function openBox() {
     box.style.display = "block";
-    launcher.style.opacity = "0.75";
+    launcher.style.opacity = "0.92";
   }
   function closeBox() {
     box.style.display = "none";
@@ -225,7 +312,7 @@
     openBox();
     if (!log.dataset.booted) {
       log.dataset.booted = "1";
-      addMsg("ai", "こんにちは。ご質問をどうぞ。");
+      addMsg("ai", "相談内容を教えてください。サービス内容、導入の流れ、問い合わせ先など案内する。");
     }
     input.focus();
   });
@@ -252,11 +339,22 @@
         })
       });
 
-      const data = await res.json();
-      pending.textContent =
-        data.reply || data.output || data.text || "返答が空だ";
+      // n8nがHTMLを返したり、空を返す可能性があるので保険
+      const ct = res.headers.get("content-type") || "";
+      let data = null;
+
+      if (ct.includes("application/json")) {
+        data = await res.json();
+      } else {
+        const raw = await res.text();
+        // JSONっぽければparse試行
+        try { data = JSON.parse(raw); } catch { data = { text: raw }; }
+      }
+
+      const reply = data?.reply || data?.output || data?.text || data?.message || "";
+      pending.textContent = reply ? reply : "返答が空だ。Webhookの返却キーを確認しろ（reply / output / text）。";
     } catch (e) {
-      pending.textContent = "通信エラー。CORS(コルス)かWebhookだ。";
+      pending.textContent = "通信エラー。CORS(コルス)かWebhookの公開設定だ。";
     }
   }
 
